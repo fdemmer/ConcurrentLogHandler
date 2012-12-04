@@ -9,7 +9,8 @@
 #   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #   License for the specific language governing permissions and limitations
 #   under the License.
-""" cloghandler.py:  A smart replacement for the standard RotatingFileHandler
+"""
+cloghandler.py:  A smart replacement for the standard RotatingFileHandler
 
 ConcurrentRotatingFileHandler:  This class is a log handler which is a drop-in
 replacement for the python standard log handler 'RotateFileHandler', the primary
@@ -40,16 +41,12 @@ usage of the portalocker module.  I do not have access to any other platforms
 for testing, patches are welcome.
 
 See the README file for an example usage of this module.
-
 """
-
-
 __version__ = "$Id: cloghandler.py 6175 2009-11-02 18:40:35Z lowell $"
 __author__ = "Lowell Alleman"
 __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
-
 
 import os
 import sys
@@ -63,11 +60,11 @@ except ImportError:
     codecs = None
 
 
-
 # Question/TODO: Should we have a fallback mode if we can't load portalocker /
 # we should still be better off than with the standard RotattingFileHandler
 # class, right? We do some rename checking... that should prevent some file
 # clobbering that the builtin class allows.
+
 
 # sibling  module than handles all the ugly platform-specific details of file locking
 from portalocker import lock, unlock, LOCK_EX, LOCK_NB, LockException
@@ -141,11 +138,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # that should be supported. For the moment, we are just going to warn
         # the user if they provide a relative path and do some other voodoo
         # logic that you'll just have to review for yourself.
-        
+
         # if the given filename contains no path, we make an absolute path
         if not os.path.isabs(filename):
-            if FORCE_ABSOLUTE_PATH or \
-               not os.path.split(filename)[0]:
+            if FORCE_ABSOLUTE_PATH or not os.path.split(filename)[0]:
                 filename = os.path.abspath(filename)
             elif not supress_abs_warn:
                 from warnings import warn
@@ -154,42 +150,50 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                      "Use 'supress_abs_warn=True' to hide this message.")
         try:
             BaseRotatingHandler.__init__(self, filename, mode, encoding)
-        except TypeError: # Due to a different logging release without encoding support  (Python 2.4.1 and earlier?)
+        except TypeError:
+            # Due to a different logging release without encoding support
+            # (Python 2.4.1 and earlier?)
             BaseRotatingHandler.__init__(self, filename, mode)
             self.encoding = encoding
-        
+
         self._rotateFailed = False
         self.maxBytes = maxBytes
         self.backupCount = backupCount
-        # Prevent multiple extensions on the lock file (Only handles the normal "*.log" case.)
+        # Prevent multiple extensions on the lock file (Only handles the normal
+        # "*.log" case.)
         if filename.endswith(".log"):
             lock_file = filename[:-4]
         else:
             lock_file = filename
         self.stream_lock = open(lock_file + ".lock", "w")
-        
-        # For debug mode, swap out the "_degrade()" method with a more a verbose one.
+
+        # For debug mode, swap out the "_degrade()" method with a more a verbose
+        # one.
         if debug:
             self._degrade = self._degrade_debug
-    
+
     def _openFile(self, mode):
         if self.encoding:
             self.stream = codecs.open(self.baseFilename, mode, self.encoding)
         else:
             self.stream = open(self.baseFilename, mode)
-    
+
     def acquire(self):
-        """ Acquire thread and file locks. Also re-opening log file when running
-        in 'degraded' mode. """
+        """
+        Acquire thread and file locks. Also re-opening log file when running
+        in 'degraded' mode.
+        """
         # handle thread lock
         Handler.acquire(self)
         lock(self.stream_lock, LOCK_EX)
         if self.stream.closed:
             self._openFile(self.mode)
-    
+
     def release(self):
-        """ Release file and thread locks. Flush stream and take care of closing
-        stream in 'degraded' mode. """
+        """
+        Release file and thread locks. Flush stream and take care of closing
+        stream in 'degraded' mode.
+        """
         try:
             if not self.stream.closed:
                 self.stream.flush()
@@ -201,7 +205,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             finally:
                 # release thread lock
                 Handler.release(self)
-    
+
     def close(self):
         """
         Closes the stream.
@@ -210,9 +214,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self.stream.flush()
             self.stream.close()
         Handler.close(self)
-    
+
     def flush(self):
-        """ flush():  Do nothing.
+        """
+        flush():  Do nothing.
 
         Since a flush is issued in release(), we don't do it here. To do a flush
         here, it would be necessary to re-lock everything, and it is just easier
@@ -221,16 +226,20 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         Doing a flush() here would also introduces a window of opportunity for
         another process to write to the log file in between calling
-        stream.write() and stream.flush(), which seems like a bad thing. """
+        stream.write() and stream.flush(), which seems like a bad thing.
+        """
         pass
-    
+
     def _degrade(self, degrade, msg, *args):
-        """ Set degrade mode or not.  Ignore msg. """
+        """
+        Set degrade mode or not.  Ignore msg.
+        """
         self._rotateFailed = degrade
         del msg, args   # avoid pychecker warnings
-    
+
     def _degrade_debug(self, degrade, msg, *args):
-        """ A more colorful version of _degade(). (This is enabled by passing
+        """
+        A more colorful version of _degade(). (This is enabled by passing
         "debug=True" at initialization).
         """
         if degrade:
@@ -243,36 +252,40 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 sys.stderr.write("Degrade mode - EXITING  - (pid=%d)   %s\n" %
                                  (os.getpid(), msg % args))
                 self._rotateFailed = False
-    
+
     def doRollover(self):
         """
         Do a rollover, as described in __init__().
         """
         if self.backupCount <= 0:
             # Don't keep any backups, just overwrite the existing backup file
-            # Locking doesn't much matter here; since we are overwriting it anyway
+            # Locking doesn't much matter here; since we are overwriting it
+            # anyway
             self.stream.close()
             self._openFile("w")
             return
         self.stream.close()
         try:
-            # Attempt to rename logfile to tempname:  There is a slight race-condition here, but it seems unavoidable
+            # Attempt to rename logfile to tempname:  There is a slight race-
+            # condition here, but it seems unavoidable
             tmpname = None
             while not tmpname or os.path.exists(tmpname):
-                tmpname = "%s.rotate.%08d" % (self.baseFilename, randint(0,99999999))
+                tmpname = "%s.rotate.%08d" % (self.baseFilename,
+                    randint(0, 99999999))
             try:
-                # Do a rename test to determine if we can successfully rename the log file
+                # Do a rename test to determine if we can successfully rename
+                # the log file
                 os.rename(self.baseFilename, tmpname)
             except (IOError, OSError):
                 exc_value = sys.exc_info()[1]
                 self._degrade(True, "rename failed.  File in use?  "
                               "exception=%s", exc_value)
                 return
-            
+
             # Q: Is there some way to protect this code from a KeboardInterupt?
             # This isn't necessarily a data loss issue, but it certainly would
             # break the rotation process during my stress testing.
-            
+
             # There is currently no mechanism in place to handle the situation
             # where one of these log files cannot be renamed. (Example, user
             # opens "logfile.3" in notepad)
@@ -292,7 +305,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._degrade(False, "Rotation completed")
         finally:
             self._openFile(self.mode)
-    
+
     def shouldRollover(self, record):
         """
         Determine if rollover should occur.
@@ -310,10 +323,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._openFile(self.mode)
             return self._shouldRollover()
         return False
-    
+
     def _shouldRollover(self):
-        if self.maxBytes > 0:                   # are we rolling over?
-            self.stream.seek(0, 2)  #due to non-posix-compliant Windows feature
+        # are we rolling over?
+        if self.maxBytes > 0:
+            # due to non-posix-compliant Windows feature
+            self.stream.seek(0, 2)
             if self.stream.tell() >= self.maxBytes:
                 return True
             else:
@@ -321,7 +336,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         return False
 
 
-# Publish this class to the "logging.handlers" module so that it can be use 
+# Publish this class to the "logging.handlers" module so that it can be used
 # from a logging config file via logging.config.fileConfig().
 import logging.handlers
 logging.handlers.ConcurrentRotatingFileHandler = ConcurrentRotatingFileHandler
