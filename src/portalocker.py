@@ -133,7 +133,9 @@ elif os.name == 'posix':
             if exc_value[0] == 11:
                 raise LockException(LockException.LOCK_FAILED, exc_value[1])
             else:
-                raise
+                # The exception code varies on different systems so we'll catch
+                # every IO error
+                raise LockException(*exc_value)
     
     def unlock(file):
         fcntl.flock(_getfd(file), fcntl.LOCK_UN)
