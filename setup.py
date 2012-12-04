@@ -137,6 +137,10 @@ Example Python code: ``app.py``::
 Change Log
 ==========
 
+- 0.8.5:  
+   * Fix error when Django tries to flush a closed file on exit.
+     by Maciej Pasternacki (https://github.com/mpasternacki)
+
 - 0.8.4:  Fixed lock-file naming issue
    * Resovled a minor issue where lock-files would be improperly named if the
      log file contained ".log" in the middle of the log name.  For example, if
@@ -197,7 +201,7 @@ use_setuptools()
 from setuptools import setup
 
 
-VERSION = "0.8.4"
+VERSION = "0.8.5"
 classifiers = """\
 Development Status :: 4 - Beta
 Development Status :: 5 - Production/Stable
